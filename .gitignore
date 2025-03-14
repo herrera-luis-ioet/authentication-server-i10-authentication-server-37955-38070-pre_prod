@@ -1,12 +1,11 @@
-
-# Python ignorables
-.knowledge/
-logs/
+# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
+
+# Distribution / packaging
 build/
 develop-eggs/
 dist/
@@ -22,11 +21,8 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-MANIFEST
-*.manifest
-*.spec
-pip-log.txt
-pip-delete-this-directory.txt
+
+# Unit test / coverage reports
 htmlcov/
 .tox/
 .coverage
@@ -37,23 +33,92 @@ coverage.xml
 *.cover
 .hypothesis/
 .pytest_cache/
+pytest-report.html
 
-# Ignore all directories containing pyvenv.cfg
-**/pyvenv.cfg
-**/*/pyvenv.cfg
-
-# Node.js ignorables
-node_modules/
-npm-debug.log
-yarn-error.log
-.pnp/
-.pnp.js
+# Environments
 .env
-.env.test
-.cache/
-.next/
-.nuxt/
-.vuepress/dist
-.serverless/
-.fusebox/
-.dynamodb/
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.python-version
+
+# Flask
+instance/
+.webassets-cache
+
+# Logs
+logs/
+*.log
+log/
+
+# Database
+*.db
+*.sqlite3
+*.sqlite
+
+# IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+.project
+.pydevproject
+.settings/
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+
+# Poetry
+poetry.lock
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# pyenv
+.python-version
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# Documentation
+/site
+docs/_build/
+
+# Local development settings
+local_settings.py
+
+# Secrets
+*.pem
+*.key
+*.crt
+*.cert
+*.p12
+
+# Temporary files
+tmp/
+temp/
