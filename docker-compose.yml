@@ -1,0 +1,113 @@
+version: '3.8'
+
+services:
+  auth-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: auth-management-component:latest
+    container_name: auth-service
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - redis
+    environment:
+      - FLASK_ENV=development
+      - FLASK_DEBUG=true
+      - SECRET_KEY=dev-secret-key-change-in-production
+      - JWT_SECRET_KEY=dev-jwt-secret-key-change-in-production
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/auth_service
+      - REDIS_URL=redis://redis:6379/0
+      - MAIL_SERVER=smtp.sendgrid.net
+      - MAIL_PORT=587
+      - MAIL_USE_TLS=true
+      - MAIL_USERNAME=apikey
+      - MAIL_PASSWORD=your-sendgrid-api-key
+      - MAIL_DEFAULT_SENDER=noreply@example.com
+      - CORS_ORIGINS=http://localhost:3000,http://localhost:8080
+    ports:
+      - "5000:5000"
+    volumes:
+      - .:/app
+      - ./logs:/app/logs
+    networks:
+      - auth-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    command: >
+      gunicorn --bind 0.0.0.0:5000 
+      --workers 2 
+      --threads 2 
+      --reload 
+      --access-logfile - 
+      --error-logfile - 
+      wsgi:app
+
+  postgres:
+    image: postgres:14-alpine
+    container_name: auth-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=auth_service
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - auth-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    container_name: auth-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - auth-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # Optional: Add pgAdmin for database management
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: auth-pgadmin
+    restart: unless-stopped
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@example.com
+      - PGADMIN_DEFAULT_PASSWORD=admin
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+    networks:
+      - auth-network
+    depends_on:
+      - postgres
+
+volumes:
+  postgres-data:
+  redis-data:
+  pgadmin-data:
+
+networks:
+  auth-network:
+    driver: bridge

@@ -1,0 +1,200 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-management
+  namespace: auth-system
+  labels:
+    app: auth-management
+    tier: backend
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: auth-management
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: auth-management
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: "5000"
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+        - name: auth-service
+          image: ${DOCKER_REGISTRY}/auth-management-component:${IMAGE_TAG}
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5000
+              name: http
+          env:
+            - name: FLASK_ENV
+              value: "production"
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: auth-secrets
+                  key: secret-key
+            - name: JWT_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: auth-secrets
+                  key: jwt-secret-key
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: auth-db-credentials
+                  key: connection-string
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: auth-redis-credentials
+                  key: connection-string
+            - name: MAIL_SERVER
+              valueFrom:
+                configMapKeyRef:
+                  name: auth-config
+                  key: mail-server
+            - name: MAIL_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: auth-config
+                  key: mail-port
+            - name: MAIL_USE_TLS
+              valueFrom:
+                configMapKeyRef:
+                  name: auth-config
+                  key: mail-use-tls
+            - name: MAIL_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: auth-mail-credentials
+                  key: username
+            - name: MAIL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: auth-mail-credentials
+                  key: password
+            - name: MAIL_DEFAULT_SENDER
+              valueFrom:
+                configMapKeyRef:
+                  name: auth-config
+                  key: mail-default-sender
+            - name: CORS_ORIGINS
+              valueFrom:
+                configMapKeyRef:
+                  name: auth-config
+                  key: cors-origins
+            - name: LOG_LEVEL
+              value: "INFO"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            successThreshold: 1
+            failureThreshold: 3
+          volumeMounts:
+            - name: logs
+              mountPath: /app/logs
+      volumes:
+        - name: logs
+          emptyDir: {}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - auth-management
+                topologyKey: "kubernetes.io/hostname"
+      terminationGracePeriodSeconds: 30
+---
+# ConfigMap for non-sensitive configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: auth-config
+  namespace: auth-system
+data:
+  mail-server: "smtp.sendgrid.net"
+  mail-port: "587"
+  mail-use-tls: "true"
+  mail-default-sender: "noreply@example.com"
+  cors-origins: "https://app.example.com,https://admin.example.com"
+---
+# Secret for sensitive information (in a real environment, use a secret management solution)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: auth-secrets
+  namespace: auth-system
+type: Opaque
+data:
+  # These are example values, in production use proper secrets management
+  secret-key: "Y2hhbmdlLXRoaXMtaW4tcHJvZHVjdGlvbg=="  # Base64 encoded
+  jwt-secret-key: "Y2hhbmdlLXRoaXMtand0LWtleS1pbi1wcm9kdWN0aW9u"  # Base64 encoded
+---
+# Secret for database credentials
+apiVersion: v1
+kind: Secret
+metadata:
+  name: auth-db-credentials
+  namespace: auth-system
+type: Opaque
+data:
+  # These are example values, in production use proper secrets management
+  connection-string: "cG9zdGdyZXNxbDovL3Bvc3RncmVzOnBvc3RncmVzQHBvc3RncmVzLmF1dGgtc3lzdGVtLnN2Yy5jbHVzdGVyLmxvY2FsOjU0MzIvYXV0aF9zZXJ2aWNl"  # Base64 encoded
+---
+# Secret for Redis credentials
+apiVersion: v1
+kind: Secret
+metadata:
+  name: auth-redis-credentials
+  namespace: auth-system
+type: Opaque
+data:
+  # These are example values, in production use proper secrets management
+  connection-string: "cmVkaXM6Ly9yZWRpcy5hdXRoLXN5c3RlbS5zdmMuY2x1c3Rlci5sb2NhbDo2Mzc5LzA="  # Base64 encoded
+---
+# Secret for mail credentials
+apiVersion: v1
+kind: Secret
+metadata:
+  name: auth-mail-credentials
+  namespace: auth-system
+type: Opaque
+data:
+  # These are example values, in production use proper secrets management
+  username: "YXBpa2V5"  # Base64 encoded "apikey"
+  password: "eW91ci1zZW5kZ3JpZC1hcGkta2V5"  # Base64 encoded "your-sendgrid-api-key"
