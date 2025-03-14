@@ -6,6 +6,7 @@ from flask import Flask, jsonify
 
 from app.config import get_config
 from app.extensions import db, migrate, jwt, bcrypt, cors, limiter
+from app.logging_config import setup_logging
 
 
 def create_app(config_name=None):
@@ -54,6 +55,97 @@ def register_extensions(app):
     bcrypt.init_app(app)
     cors.init_app(app)
     limiter.init_app(app)
+    
+    # Set up logging
+    setup_logging(app)
+    
+    # Set up Prometheus metrics if available
+    try:
+        from prometheus_client import Counter, Histogram, Info
+        from flask import request, g
+        import time
+        
+        # Create metrics
+        request_counter = Counter(
+            'flask_http_request_total',
+            'Total number of HTTP requests',
+            ['method', 'endpoint', 'status']
+        )
+        
+        request_duration = Histogram(
+            'flask_http_request_duration_seconds',
+            'HTTP request duration in seconds',
+            ['method', 'endpoint']
+        )
+        
+        active_users = Counter(
+            'auth_service_active_users',
+            'Number of active users'
+        )
+        
+        login_counter = Counter(
+            'auth_service_login_total',
+            'Total number of login attempts',
+            ['status']
+        )
+        
+        login_failed_counter = Counter(
+            'auth_service_login_failed_total',
+            'Total number of failed login attempts',
+            ['reason']
+        )
+        
+        registration_counter = Counter(
+            'auth_service_registration_total',
+            'Total number of user registrations',
+            ['status']
+        )
+        
+        # Add version info
+        info = Info('auth_service_info', 'Authentication service information')
+        info.info({
+            'version': os.getenv('APP_VERSION', '0.1.0'),
+            'environment': os.getenv('FLASK_ENV', 'development')
+        })
+        
+        # Register metrics middleware
+        @app.before_request
+        def before_request_metrics():
+            g.start_time = time.time()
+        
+        @app.after_request
+        def after_request_metrics(response):
+            if hasattr(g, 'start_time'):
+                request_duration.labels(
+                    method=request.method,
+                    endpoint=request.endpoint or 'unknown'
+                ).observe(time.time() - g.start_time)
+                
+            request_counter.labels(
+                method=request.method,
+                endpoint=request.endpoint or 'unknown',
+                status=response.status_code
+            ).inc()
+            
+            return response
+            
+        # Set up logging metrics
+        from app.logging_config import setup_logging_metrics
+        setup_logging_metrics({
+            'counter': Counter,
+            'histogram': Histogram,
+            'info': Info
+        })
+        
+        # Add metrics endpoint
+        from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+        
+        @app.route('/metrics')
+        def metrics():
+            return generate_latest(), 200, {'Content-Type': CONTENT_TYPE_LATEST}
+            
+    except ImportError:
+        app.logger.warning("Prometheus client not installed. Metrics will not be available.")
     
     return None
 
