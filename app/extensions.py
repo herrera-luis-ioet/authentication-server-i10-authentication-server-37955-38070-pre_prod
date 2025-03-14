@@ -48,8 +48,21 @@ def check_if_token_is_revoked(jwt_header, jwt_payload):
     Returns:
         bool: True if the token is revoked, False otherwise.
     """
-    # This will be implemented when the TokenBlacklist model is created
-    # For now, return False to indicate no tokens are revoked
+    from app.models.token import Token, TokenType
+    
+    # Check if this is a refresh token that's been revoked
+    jti = jwt_payload.get("jti")
+    token_type = jwt_payload.get("type")
+    
+    # Only check database for refresh tokens
+    if token_type != "refresh":
+        return False
+        
+    # Check if token exists in database and is revoked
+    token = Token.find_by_token(jti)
+    if token and token.is_revoked:
+        return True
+        
     return False
 
 
@@ -65,8 +78,11 @@ def load_user_from_jwt(jwt_header, jwt_payload):
     Returns:
         User: The user object if found, None otherwise.
     """
-    # This will be implemented when the User model is created
-    # For now, return None
+    from app.models.user import User
+    
+    identity = jwt_payload.get("sub")
+    if identity:
+        return User.find_by_id(identity)
     return None
 
 

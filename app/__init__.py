@@ -116,9 +116,12 @@ def register_shell_context(app):
         app (Flask): The Flask application instance.
     """
     def shell_context():
+        from app.models import User, Token
         return {
             'app': app,
             'db': db,
+            'User': User,
+            'Token': Token,
         }
     
     app.shell_context_processor(shell_context)
