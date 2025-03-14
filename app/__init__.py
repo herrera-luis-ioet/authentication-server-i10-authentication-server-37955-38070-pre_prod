@@ -66,9 +66,11 @@ def register_blueprints(app):
         app (Flask): The Flask application instance.
     """
     # Import blueprints here to avoid circular imports
-    # Example:
-    # from app.api.auth import auth_bp
-    # app.register_blueprint(auth_bp, url_prefix='/api/auth')
+    from app.api import auth_bp, users_bp
+    
+    # Register blueprints
+    app.register_blueprint(auth_bp)
+    app.register_blueprint(users_bp)
     
     @app.route('/health')
     def health_check():
